@@ -1,0 +1,171 @@
+version: '3.8'
+
+# Docker Compose Corregido para solucionar problema de Grafana
+
+services:
+  # ================================================
+  # BACKEND - API FastAPI
+  # ================================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: emotion-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./security_reports:/app/security_reports
+    environment:
+      - DATABASE_URL=sqlite:///./data/palettes.db
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-jwt-super-secret-key-change-in-production-32-chars}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-encryption-key-change-in-prod-32}
+      - JWT_ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - emotion-network
+
+  # ================================================
+  # FRONTEND - Nginx
+  # ================================================
+  frontend:
+    image: nginx:alpine
+    container_name: emotion-frontend
+    ports:
+      - "8081:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - emotion-network
+
+  # ================================================
+  # PROMETHEUS - Monitoreo de Métricas
+  # ================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: emotion-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - emotion-network
+
+  # ================================================
+  # GRAFANA - Visualización (CONFIGURACIÓN CORREGIDA)
+  # ================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: emotion-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      # Volumen persistente para datos de Grafana
+      - grafana-data:/var/lib/grafana
+      # Provisioning de datasources (READ ONLY)
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      # Provisioning de dashboards (READ ONLY)
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      # Dashboards JSON en la ubicación correcta
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      # Credenciales de admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      
+      # Configuración de usuarios
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_USERS_DEFAULT_THEME=dark
+      
+      # Configuración del servidor
+      - GF_SERVER_ROOT_URL=http://localhost:3000
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+      
+      # Desactivar autenticación anónima
+      - GF_AUTH_ANONYMOUS_ENABLED=false
+      
+      # Logging
+      - GF_LOG_LEVEL=info
+      - GF_LOG_MODE=console
+      
+      # Plugins (ninguno por ahora para evitar problemas)
+      - GF_INSTALL_PLUGINS=
+      
+      # Paths (usar defaults)
+      - GF_PATHS_DATA=/var/lib/grafana
+      - GF_PATHS_LOGS=/var/log/grafana
+      - GF_PATHS_PLUGINS=/var/lib/grafana/plugins
+      - GF_PATHS_PROVISIONING=/etc/grafana/provisioning
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    networks:
+      - emotion-network
+    labels:
+      - "com.emotion.service=grafana"
+      - "com.emotion.description=Grafana Dashboards"
+
+# ================================================
+# VOLÚMENES PERSISTENTES
+# ================================================
+volumes:
+  prometheus-data:
+    driver: local
+    labels:
+      - "com.emotion.volume=prometheus-data"
+      - "com.emotion.description=Prometheus time-series data"
+  
+  grafana-data:
+    driver: local
+    labels:
+      - "com.emotion.volume=grafana-data"
+      - "com.emotion.description=Grafana configuration and dashboards"
+
+# ================================================
+# RED PERSONALIZADA
+# ================================================
+networks:
+  emotion-network:
+    driver: bridge
+    labels:
+      - "com.emotion.network=main"
+      - "com.emotion.description=Main network for all services"

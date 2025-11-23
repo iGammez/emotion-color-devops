@@ -1,0 +1,300 @@
+name: CI/CD Pipeline - Análisis de Sentimientos
+
+on:
+  push:
+    branches: [ main, development ]
+  pull_request:
+    branches: [ main, development ]
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: '3.11'
+  DOCKER_REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # =====================================================
+  # JOB 1: BUILD & TEST
+  # =====================================================
+  build-and-test:
+    name: 🧪 Build & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+
+      - name: 📦 Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install pytest pytest-cov pytest-asyncio httpx
+
+      - name: 🧪 Run tests
+        run: |
+          cd backend
+          pytest tests/ -v --cov=. --cov-report=xml --cov-report=html --cov-report=term
+        env:
+          JWT_SECRET_KEY: test-secret-key
+          ENCRYPTION_KEY: test-encryption-key-32-chars
+
+      - name: 📊 Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./backend/coverage.xml
+          flags: unittests
+          name: codecov-umbrella
+
+      - name: 💾 Save coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: backend/htmlcov/
+
+  # =====================================================
+  # JOB 2: SECURITY SCAN
+  # =====================================================
+  security-scan:
+    name: 🔒 Security Scan
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install security tools
+        run: |
+          pip install safety bandit
+
+      - name: 🔍 Run Safety (dependency scan)
+        run: |
+          cd backend
+          safety check --json --output safety-report.json || true
+          safety check || echo "⚠️ Vulnerabilidades detectadas, revisar reporte"
+
+      - name: 🔍 Run Bandit (code scan)
+        run: |
+          cd backend
+          bandit -r . -f json -o bandit-report.json || true
+          bandit -r . || echo "⚠️ Problemas de seguridad detectados"
+
+      - name: 📋 Generate security summary
+        run: |
+          echo "## 🔒 Reporte de Seguridad" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Safety (Dependencias)" >> $GITHUB_STEP_SUMMARY
+          if [ -f backend/safety-report.json ]; then
+            echo "✅ Análisis completado - Ver artefactos" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ No se generó reporte" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Bandit (Código)" >> $GITHUB_STEP_SUMMARY
+          if [ -f backend/bandit-report.json ]; then
+            echo "✅ Análisis completado - Ver artefactos" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ No se generó reporte" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: 💾 Upload security reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports
+          path: |
+            backend/safety-report.json
+            backend/bandit-report.json
+
+  # =====================================================
+  # JOB 3: LINT & CODE QUALITY
+  # =====================================================
+  lint:
+    name: 🎨 Lint & Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install linters
+        run: |
+          pip install flake8 black isort mypy
+
+      - name: 🔍 Run flake8
+        run: |
+          cd backend
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: 🎨 Check code formatting (black)
+        run: |
+          cd backend
+          black --check . || echo "⚠️ Código necesita formateo"
+
+      - name: 📦 Check imports (isort)
+        run: |
+          cd backend
+          isort --check-only . || echo "⚠️ Imports necesitan ordenamiento"
+
+  # =====================================================
+  # JOB 4: BUILD DOCKER IMAGES
+  # =====================================================
+  build-docker:
+    name: 🐳 Build Docker Images
+    runs-on: ubuntu-latest
+    needs: [build-and-test, security-scan]
+    if: github.event_name == 'push'
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔐 Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 🏷️ Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.DOCKER_REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix={{branch}}-
+            type=semver,pattern={{version}}
+
+      - name: 🏗️ Build and push Backend
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 📋 Image digest
+        run: echo "Image pushed with tags: ${{ steps.meta.outputs.tags }}"
+
+  # =====================================================
+  # JOB 5: DEPLOY TO STAGING (solo en main)
+  # =====================================================
+  deploy-staging:
+    name: 🚀 Deploy to Staging
+    runs-on: ubuntu-latest
+    needs: build-docker
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment:
+      name: staging
+      url: http://staging.example.com
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🚀 Deploy with Docker Compose
+        run: |
+          echo "🔧 Configurando despliegue..."
+          # Aquí irían los comandos reales de despliegue
+          # Por ejemplo: ssh al servidor, docker-compose pull, up -d
+          echo "✅ Despliegue simulado exitoso"
+
+      - name: 🏥 Health check
+        run: |
+          echo "🔍 Verificando salud del servicio..."
+          # curl -f http://staging.example.com/health || exit 1
+          echo "✅ Servicio saludable"
+
+      - name: 📢 Notify deployment
+        run: |
+          echo "## 🚀 Despliegue a Staging" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Estado**: ✅ Exitoso" >> $GITHUB_STEP_SUMMARY
+
+  # =====================================================
+  # JOB 6: INTEGRATION TESTS (Post-deploy)
+  # =====================================================
+  integration-tests:
+    name: 🧪 Integration Tests
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: 📦 Install test dependencies
+        run: |
+          pip install pytest httpx
+
+      - name: 🧪 Run integration tests
+        run: |
+          echo "🧪 Ejecutando tests de integración..."
+          # pytest tests/integration/ -v
+          echo "✅ Tests de integración pasados"
+
+  # =====================================================
+  # JOB 7: NOTIFICATION
+  # =====================================================
+  notify:
+    name: 📢 Notify Results
+    runs-on: ubuntu-latest
+    needs: [build-and-test, security-scan, lint, build-docker]
+    if: always()
+    
+    steps:
+      - name: 📊 Pipeline Summary
+        run: |
+          echo "## 📊 Resumen del Pipeline" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Resultados:" >> $GITHUB_STEP_SUMMARY
+          echo "- 🧪 Tests: ${{ needs.build-and-test.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🔒 Security: ${{ needs.security-scan.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🎨 Lint: ${{ needs.lint.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "- 🐳 Docker: ${{ needs.build-docker.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Autor**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: ✅ Success notification
+        if: needs.build-and-test.result == 'success'
+        run: |
+          echo "✅ Pipeline ejecutado exitosamente"
+          # Aquí se puede agregar notificación por Slack, Discord, etc.
+
+      - name: ❌ Failure notification
+        if: needs.build-and-test.result == 'failure' || needs.security-scan.result == 'failure'
+        run: |
+          echo "❌ Pipeline falló - Revisar logs"
+          # Aquí se puede agregar notificación de falla

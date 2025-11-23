@@ -1,0 +1,71 @@
+# Configuración de Prometheus para Monitoreo del Sistema
+# Requisito 7: Monitoreo de Métricas
+
+global:
+  scrape_interval: 15s # Intervalo de scraping cada 15 segundos
+  evaluation_interval: 15s # Evaluar reglas cada 15 segundos
+  external_labels:
+    cluster: 'emotion-color-analysis'
+    environment: 'production'
+
+# Configuración de Alertmanager (opcional)
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          # - 'alertmanager:9093'
+
+# Cargar reglas de alertas
+rule_files:
+  - 'alerts.yml'
+
+# Configuración de scraping
+scrape_configs:
+  # ================================================
+  # Métricas de Prometheus mismo
+  # ================================================
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: 'prometheus'
+          team: 'devops'
+
+  # ================================================
+  # Métricas del Backend (FastAPI)
+  # ================================================
+  - job_name: 'backend-api'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['backend:8000']
+        labels:
+          service: 'emotion-color-api'
+          component: 'backend'
+          environment: 'production'
+    
+    # Configuración de relabeling para métricas personalizadas
+    metric_relabel_configs:
+      # Mantener solo métricas relevantes
+      - source_labels: [__name__]
+        regex: '(palettes_created_total|palettes_deleted_total|api_requests_total|errors_total|request_duration_seconds.*|sentiment_.*|system_.*)'
+        action: keep
+
+  # ================================================
+  # Métricas del Sistema (Node Exporter) - Opcional
+  # ================================================
+  # - job_name: 'node-exporter'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+  #       labels:
+  #         service: 'system-metrics'
+
+  # ================================================
+  # Métricas de Docker - Opcional
+  # ================================================
+  # - job_name: 'docker'
+  #   static_configs:
+  #     - targets: ['cadvisor:8080']
+  #       labels:
+  #         service: 'docker-metrics'

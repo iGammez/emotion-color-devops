@@ -1,0 +1,245 @@
+# Reglas de Alertas para Prometheus
+# Requisito 8: Generar alertas en caso de eventos críticos
+
+groups:
+  # ================================================
+  # GRUPO 1: Alertas de Disponibilidad
+  # ================================================
+  - name: availability_alerts
+    interval: 30s
+    rules:
+      - alert: ServiceDown
+        expr: up{job="backend-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          team: devops
+        annotations:
+          summary: "Servicio {{ $labels.job }} está caído"
+          description: "El servicio {{ $labels.job }} en {{ $labels.instance }} ha estado caído por más de 1 minuto."
+          dashboard: "http://grafana:3000/d/sentiment-dashboard"
+      
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(api_requests_total{status="5xx"}[5m])) by (job)
+            /
+            sum(rate(api_requests_total[5m])) by (job)
+          ) * 100 > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Tasa de errores alta en {{ $labels.job }}"
+          description: "La tasa de errores es {{ $value }}% en los últimos 5 minutos (>5%)."
+          impact: "Los usuarios están experimentando errores frecuentes"
+
+  # ================================================
+  # GRUPO 2: Alertas de Performance
+  # ================================================
+  - name: performance_alerts
+    interval: 30s
+    rules:
+      - alert: HighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(request_duration_seconds_bucket[5m])) by (le, endpoint)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Latencia alta en {{ $labels.endpoint }}"
+          description: "El percentil 95 de latencia es {{ $value }}s en el endpoint {{ $labels.endpoint }} (>2s)."
+          recommendation: "Revisar logs y métricas de base de datos"
+      
+      - alert: SlowSentimentAnalysis
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(sentiment_analysis_duration_seconds_bucket[5m])) by (le, method)
+          ) > 1
+        for: 3m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Análisis de sentimientos lento ({{ $labels.method }})"
+          description: "El análisis de sentimientos con {{ $labels.method }} tarda {{ $value }}s (>1s)."
+          action: "Optimizar algoritmo o agregar caché"
+
+  # ================================================
+  # GRUPO 3: Alertas de Recursos del Sistema
+  # ================================================
+  - name: system_resource_alerts
+    interval: 1m
+    rules:
+      - alert: HighCPUUsage
+        expr: system_cpu_usage_percent > 80
+        for: 5m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Uso alto de CPU"
+          description: "El uso de CPU es {{ $value }}% (>80%) durante más de 5 minutos."
+          action: "Considerar escalado horizontal o vertical"
+      
+      - alert: HighMemoryUsage
+        expr: |
+          (
+            system_memory_usage_bytes
+            /
+            (system_memory_usage_bytes + process_virtual_memory_bytes)
+          ) * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Uso alto de memoria"
+          description: "El uso de memoria es {{ $value }}% (>85%)."
+          action: "Verificar memory leaks o aumentar memoria disponible"
+      
+      - alert: HighDiskUsage
+        expr: system_disk_usage_percent{mount_point="/"} > 85
+        for: 10m
+        labels:
+          severity: warning
+          team: infrastructure
+        annotations:
+          summary: "Espacio en disco bajo"
+          description: "El uso de disco en {{ $labels.mount_point }} es {{ $value }}% (>85%)."
+          action: "Limpiar logs antiguos o aumentar espacio en disco"
+
+  # ================================================
+  # GRUPO 4: Alertas de Base de Datos
+  # ================================================
+  - name: database_alerts
+    interval: 1m
+    rules:
+      - alert: SlowDatabaseQueries
+        expr: |
+          histogram_quantile(0.95,
+            sum(rate(db_query_duration_seconds_bucket[5m])) by (le, operation)
+          ) > 0.5
+        for: 3m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Queries de BD lentas ({{ $labels.operation }})"
+          description: "Las queries {{ $labels.operation }} tardan {{ $value }}s (>0.5s)."
+          action: "Revisar índices de base de datos y optimizar queries"
+      
+      - alert: DatabaseGrowthRate
+        expr: |
+          increase(total_palettes_in_db[1h]) > 1000
+        for: 0m
+        labels:
+          severity: info
+          team: backend
+        annotations:
+          summary: "Crecimiento rápido de la base de datos"
+          description: "Se han creado {{ $value }} paletas en la última hora."
+          note: "Monitorear para planificar capacidad"
+
+  # ================================================
+  # GRUPO 5: Alertas de Seguridad
+  # ================================================
+  - name: security_alerts
+    interval: 1m
+    rules:
+      - alert: HighAuthenticationFailures
+        expr: |
+          increase(errors_total{error_type="authentication_failed"}[5m]) > 10
+        for: 1m
+        labels:
+          severity: warning
+          team: security
+        annotations:
+          summary: "Múltiples fallos de autenticación"
+          description: "{{ $value }} intentos de login fallidos en los últimos 5 minutos."
+          action: "Posible ataque de fuerza bruta - revisar logs de seguridad"
+      
+      - alert: CriticalErrorsDetected
+        expr: |
+          increase(errors_total{severity="critical"}[10m]) > 5
+        for: 1m
+        labels:
+          severity: critical
+          team: devops
+        annotations:
+          summary: "Errores críticos detectados"
+          description: "{{ $value }} errores críticos en los últimos 10 minutos."
+          action: "Revisar logs inmediatamente - posible incidente"
+
+  # ================================================
+  # GRUPO 6: Alertas de Negocio
+  # ================================================
+  - name: business_alerts
+    interval: 5m
+    rules:
+      - alert: LowUserActivity
+        expr: |
+          rate(palettes_created_total[1h]) < 0.01
+        for: 30m
+        labels:
+          severity: info
+          team: product
+        annotations:
+          summary: "Baja actividad de usuarios"
+          description: "Muy pocas paletas creadas en la última hora (< 1 por minuto)."
+          note: "Revisar si hay problemas o es horario normal"
+      
+      - alert: UnusualSentimentDistribution
+        expr: |
+          (
+            sum(rate(palettes_created_total{sentiment_type=~".*negative.*"}[1h]))
+            /
+            sum(rate(palettes_created_total[1h]))
+          ) * 100 > 70
+        for: 15m
+        labels:
+          severity: info
+          team: product
+        annotations:
+          summary: "Distribución inusual de sentimientos"
+          description: "{{ $value }}% de sentimientos negativos en la última hora (>70%)."
+          note: "Puede indicar tendencia en el uso o problema en el análisis"
+
+  # ================================================
+  # GRUPO 7: Alertas de Métricas Personalizadas
+  # ================================================
+  - name: custom_metrics_alerts
+    interval: 1m
+    rules:
+      - alert: HighTranslationFailureRate
+        expr: |
+          (
+            sum(rate(errors_total{error_type="translation"}[5m]))
+            /
+            sum(rate(translations_total[5m]))
+          ) * 100 > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: backend
+        annotations:
+          summary: "Alta tasa de fallos en traducción"
+          description: "{{ $value }}% de traducciones fallando (>10%)."
+          action: "Verificar servicio de traducción (Deep Translator)"
+      
+      - alert: NoMetricsReceived
+        expr: |
+          up{job="backend-api"} == 1 and
+          rate(api_requests_total[5m]) == 0
+        for: 10m
+        labels:
+          severity: warning
+          team: devops
+        annotations:
+          summary: "No se están recibiendo métricas"
+          description: "El servicio está UP pero no hay requests en los últimos 10 minutos."
+          action: "Verificar que el scraping de métricas funcione correctamente"

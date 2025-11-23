@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Administración de Usuarios</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .admin-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 2rem;
+            font-weight: 700;
+            color: #333;
+        }
+
+        .admin-icon {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 1.5rem;
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .users-table {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .table {
+            margin-bottom: 0;
+        }
+
+        .table thead {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .table thead th {
+            border: none;
+            padding: 15px;
+            font-weight: 600;
+        }
+
+        .table tbody tr {
+            transition: background-color 0.2s ease;
+        }
+
+        .table tbody tr:hover {
+            background-color: #f8f9fa;
+        }
+
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.85rem;
+        }
+
+        .badge-admin {
+            background: #ff6b6b;
+        }
+
+        .badge-user {
+            background: #4ecdc4;
+        }
+
+        .badge-viewer {
+            background: #95a5a6;
+        }
+
+        .badge-active {
+            background: #48dbfb;
+        }
+
+        .badge-inactive {
+            background: #b2bec3;
+        }
+
+        .btn-action {
+            padding: 5px 12px;
+            font-size: 0.85rem;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-action:hover {
+            transform: scale(1.05);
+        }
+
+        .back-btn {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            padding: 10px 20px;
+            border-radius: 12px;
+            text-decoration: none;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .back-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.2rem;
+            color: #667eea;
+        }
+
+        .loading i {
+            font-size: 2rem;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .filter-section {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .search-box {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 10px 15px;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-box:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .no-users {
+            text-align: center;
+            padding: 60px;
+            color: #999;
+        }
+
+        .no-users i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <!-- Header -->
+        <div class="admin-header">
+            <div class="admin-title">
+                <div class="admin-icon">
+                    <i class="bi bi-people-fill"></i>
+                </div>
+                <div>
+                    <div>Administración de Usuarios</div>
+                    <small style="font-size: 0.9rem; color: #666; font-weight: 400;">
+                        Panel de control para gestión de usuarios
+                    </small>
+                </div>
+            </div>
+            <a href="index.html" class="back-btn">
+                <i class="bi bi-arrow-left"></i> Volver al Dashboard
+            </a>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="stats-row" id="stats-container">
+            <div class="stat-card">
+                <div class="stat-number" id="total-users">0</div>
+                <div class="stat-label">
+                    <i class="bi bi-people"></i> Total de Usuarios
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-admins">0</div>
+                <div class="stat-label">
+                    <i class="bi bi-shield-check"></i> Administradores
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-regular">0</div>
+                <div class="stat-label">
+                    <i class="bi bi-person-check"></i> Usuarios Regulares
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="total-active">0</div>
+                <div class="stat-label">
+                    <i class="bi bi-check-circle"></i> Usuarios Activos
+                </div>
+            </div>
+        </div>
+
+        <!-- Filtros -->
+        <div class="filter-section">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <input 
+                        type="text" 
+                        class="form-control search-box" 
+                        id="search-input" 
+                        placeholder="🔍 Buscar por nombre, usuario o email..."
+                    >
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select search-box" id="role-filter">
+                        <option value="">Todos los roles</option>
+                        <option value="admin">Administradores</option>
+                        <option value="user">Usuarios</option>
+                        <option value="viewer">Visualizadores</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select search-box" id="status-filter">
+                        <option value="">Todos los estados</option>
+                        <option value="active">Activos</option>
+                        <option value="inactive">Inactivos</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading -->
+        <div class="loading" id="loading">
+            <i class="bi bi-arrow-clockwise"></i>
+            <div>Cargando usuarios...</div>
+        </div>
+
+        <!-- Tabla de usuarios -->
+        <div class="users-table" id="users-table" style="display: none;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Usuario</th>
+                        <th>Nombre Completo</th>
+                        <th>Email</th>
+                        <th>Rol</th>
+                        <th>Estado</th>
+                        <th>Último Login</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="users-tbody">
+                    <!-- Se llena dinámicamente -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Sin usuarios -->
+        <div class="no-users" id="no-users" style="display: none;">
+            <i class="bi bi-people"></i>
+            <div>No hay usuarios registrados</div>
+        </div>
+    </div>
+
+    <!-- Modal para cambiar rol -->
+    <div class="modal fade" id="changeRoleModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Cambiar Rol de Usuario</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Cambiar rol del usuario: <strong id="modal-username"></strong></p>
+                    <select class="form-select" id="modal-new-role">
+                        <option value="admin">Administrador</option>
+                        <option value="user">Usuario</option>
+                        <option value="viewer">Visualizador</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" id="confirm-change-role">Cambiar Rol</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="auth.js"></script>
+    <script>
+        const API_URL = 'http://localhost:8000';
+        let allUsers = [];
+        let selectedUserId = null;
+
+        // Verificar que sea admin
+        if (!AUTH.isAdmin()) {
+            alert('Solo administradores pueden acceder a esta página');
+            window.location.href = 'index.html';
+        }
+
+        // Cargar usuarios
+        async function loadUsers() {
+            try {
+                const response = await authenticatedFetch(`${API_URL}/users`);
+                
+                if (!response.ok) {
+                    throw new Error('Error al cargar usuarios');
+                }
+
+                allUsers = await response.json();
+                displayUsers(allUsers);
+                updateStats(allUsers);
+
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('loading').innerHTML = `
+                    <i class="bi bi-exclamation-triangle text-danger"></i>
+                    <div class="text-danger">Error al cargar usuarios: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Mostrar usuarios en la tabla
+        function displayUsers(users) {
+            const tbody = document.getElementById('users-tbody');
+            const loading = document.getElementById('loading');
+            const table = document.getElementById('users-table');
+            const noUsers = document.getElementById('no-users');
+
+            loading.style.display = 'none';
+
+            if (users.length === 0) {
+                table.style.display = 'none';
+                noUsers.style.display = 'block';
+                return;
+            }
+
+            table.style.display = 'block';
+            noUsers.style.display = 'none';
+
+            tbody.innerHTML = users.map(user => `
+                <tr>
+                    <td>${user.id}</td>
+                    <td>
+                        <strong>${user.username}</strong>
+                        ${user.username === AUTH.getUser().username ? '<span class="badge bg-info ms-2">Tú</span>' : ''}
+                    </td>
+                    <td>${user.full_name || '<span class="text-muted">N/A</span>'}</td>
+                    <td>${user.email}</td>
+                    <td>
+                        <span class="badge badge-${user.role}">
+                            ${user.role === 'admin' ? '🛡️ Admin' : user.role === 'user' ? '👤 User' : '👁️ Viewer'}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge badge-${user.is_active ? 'active' : 'inactive'}">
+                            ${user.is_active ? '✓ Activo' : '✗ Inactivo'}
+                        </span>
+                    </td>
+                    <td>
+                        ${user.last_login ? new Date(user.last_login).toLocaleString('es-ES', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }) : '<span class="text-muted">Nunca</span>'}
+                    </td>
+                    <td>
+                        <button 
+                            class="btn btn-sm btn-primary btn-action" 
+                            onclick="openChangeRoleModal(${user.id}, '${user.username}', '${user.role}')"
+                            title="Cambiar rol"
+                        >
+                            <i class="bi bi-arrow-left-right"></i>
+                        </button>
+                        <button 
+                            class="btn btn-sm ${user.is_active ? 'btn-warning' : 'btn-success'} btn-action" 
+                            onclick="toggleUserStatus(${user.id}, ${user.is_active})"
+                            title="${user.is_active ? 'Desactivar' : 'Activar'}"
+                        >
+                            <i class="bi bi-${user.is_active ? 'pause' : 'play'}-circle"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Actualizar estadísticas
+        function updateStats(users) {
+            document.getElementById('total-users').textContent = users.length;
+            document.getElementById('total-admins').textContent = users.filter(u => u.role === 'admin').length;
+            document.getElementById('total-regular').textContent = users.filter(u => u.role === 'user').length;
+            document.getElementById('total-active').textContent = users.filter(u => u.is_active).length;
+        }
+
+        // Filtrar usuarios
+        function filterUsers() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const roleFilter = document.getElementById('role-filter').value;
+            const statusFilter = document.getElementById('status-filter').value;
+
+            const filtered = allUsers.filter(user => {
+                const matchSearch = !searchTerm || 
+                    user.username.toLowerCase().includes(searchTerm) ||
+                    (user.full_name && user.full_name.toLowerCase().includes(searchTerm)) ||
+                    user.email.toLowerCase().includes(searchTerm);
+
+                const matchRole = !roleFilter || user.role === roleFilter;
+                const matchStatus = !statusFilter || 
+                    (statusFilter === 'active' && user.is_active) ||
+                    (statusFilter === 'inactive' && !user.is_active);
+
+                return matchSearch && matchRole && matchStatus;
+            });
+
+            displayUsers(filtered);
+        }
+
+        // Abrir modal para cambiar rol
+        function openChangeRoleModal(userId, username, currentRole) {
+            selectedUserId = userId;
+            document.getElementById('modal-username').textContent = username;
+            document.getElementById('modal-new-role').value = currentRole;
+            new bootstrap.Modal(document.getElementById('changeRoleModal')).show();
+        }
+
+        // Cambiar rol de usuario
+        document.getElementById('confirm-change-role').addEventListener('click', async () => {
+            const newRole = document.getElementById('modal-new-role').value;
+            
+            try {
+                const response = await authenticatedFetch(`${API_URL}/users/${selectedUserId}/role`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ role: newRole })
+                });
+
+                if (response.ok) {
+                    alert('Rol actualizado exitosamente');
+                    bootstrap.Modal.getInstance(document.getElementById('changeRoleModal')).hide();
+                    loadUsers();
+                } else {
+                    alert('Error al actualizar rol');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        });
+
+        // Activar/Desactivar usuario
+        async function toggleUserStatus(userId, currentStatus) {
+            const action = currentStatus ? 'desactivar' : 'activar';
+            
+            if (!confirm(`¿Estás seguro de ${action} este usuario?`)) {
+                return;
+            }
+
+            try {
+                const response = await authenticatedFetch(`${API_URL}/users/${userId}/status`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ is_active: !currentStatus })
+                });
+
+                if (response.ok) {
+                    alert('Estado actualizado exitosamente');
+                    loadUsers();
+                } else {
+                    alert('Error al actualizar estado');
+                }
+            } catch (error) {
+                alert('Error: ' + error.message);
+            }
+        }
+
+        // Event listeners
+        document.getElementById('search-input').addEventListener('input', filterUsers);
+        document.getElementById('role-filter').addEventListener('change', filterUsers);
+        document.getElementById('status-filter').addEventListener('change', filterUsers);
+
+        // Cargar usuarios al iniciar
+        loadUsers();
+    </script>
+</body>
+</html>
