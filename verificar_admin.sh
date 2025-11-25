@@ -1,4 +1,4 @@
-#!/bin/bash
+   #!/bin/bash
 
 # Script para verificar y crear el usuario admin
 

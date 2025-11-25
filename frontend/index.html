@@ -8,9 +8,288 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        /* Estilos del menú hamburguesa */
+        .menu-btn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 9999;
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .menu-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+
+        .menu-btn span {
+            width: 30px;
+            height: 3px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 3px;
+            transition: all 0.3s ease;
+        }
+
+        .menu-btn.active span:nth-child(1) {
+            transform: rotate(45deg) translate(8px, 8px);
+        }
+
+        .menu-btn.active span:nth-child(2) {
+            opacity: 0;
+        }
+
+        .menu-btn.active span:nth-child(3) {
+            transform: rotate(-45deg) translate(8px, -8px);
+        }
+
+        /* Panel del menú lateral */
+        .side-menu {
+            position: fixed;
+            top: 0;
+            left: -350px;
+            width: 320px;
+            height: 100vh;
+            background: rgba(255, 255, 255, 0.98);
+            backdrop-filter: blur(20px);
+            box-shadow: 5px 0 30px rgba(0,0,0,0.15);
+            z-index: 9998;
+            transition: left 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto;
+            padding: 100px 0 30px 0;
+        }
+
+        .side-menu.open {
+            left: 0;
+        }
+
+        /* Perfil de usuario en el menú */
+        .menu-user-profile {
+            padding: 25px;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            margin: 0 20px 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .menu-user-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+            margin: 0 auto 15px;
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .menu-user-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .menu-user-role {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: white;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+
+        /* Items del menú */
+        .menu-items {
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .menu-item {
+            margin: 8px 20px;
+        }
+
+        .menu-item a,
+        .menu-item button {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px 20px;
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #333;
+            font-weight: 600;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+        }
+
+        .menu-item a:hover,
+        .menu-item button:hover {
+            transform: translateX(5px);
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+        }
+
+        .menu-item i {
+            font-size: 1.5rem;
+            width: 30px;
+            text-align: center;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Botón de cerrar sesión */
+        .menu-logout {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+        }
+
+        .menu-logout button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 8px 20px rgba(255, 107, 107, 0.3);
+        }
+
+        .menu-logout button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(255, 107, 107, 0.4);
+        }
+
+        /* Overlay cuando el menú está abierto */
+        .menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9997;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .menu-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        /* Ajuste para el header principal */
+        .controls-container {
+            margin-left: 70px;
+            width: calc(85% - 70px);
+        }
+
+        /* Badge de notificación */
+        .menu-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #ff6b6b;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .side-menu {
+                width: 280px;
+            }
+            
+            .controls-container {
+                margin-left: 10px;
+                width: calc(95% - 10px);
+            }
+            
+            .menu-btn {
+                width: 50px;
+                height: 50px;
+                left: 10px;
+                top: 15px;
+            }
+        }
+    </style>
 </head>
 <body>
-    <!-- Header con controles mejorados -->
+    <!-- Botón hamburguesa -->
+    <button class="menu-btn" id="menu-btn" aria-label="Menú">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+
+    <!-- Overlay oscuro -->
+    <div class="menu-overlay" id="menu-overlay"></div>
+
+    <!-- Menú lateral -->
+    <div class="side-menu" id="side-menu">
+        <!-- Perfil de usuario -->
+        <div class="menu-user-profile">
+            <div class="menu-user-avatar" id="menu-avatar">
+                👤
+            </div>
+            <div class="menu-user-name" id="menu-username">Usuario</div>
+            <span class="menu-user-role" id="menu-role">User</span>
+        </div>
+
+        <!-- Items del menú -->
+        <ul class="menu-items" id="menu-items">
+            <!-- Se llenan dinámicamente según el rol -->
+        </ul>
+
+        <!-- Botón de cerrar sesión -->
+        <div class="menu-logout">
+            <button onclick="handleLogout()">
+                <i class="bi bi-box-arrow-right"></i> Cerrar Sesión
+            </button>
+        </div>
+    </div>
+
+    <!-- Header con controles (sin botón de galería ni admin ahora) -->
     <header class="controls-container">
         <div class="input-group">
             <button class="btn btn-outline-secondary" type="button" id="download-btn" title="Descargar paleta como imagen">
@@ -21,15 +300,6 @@
             <button class="btn btn-primary pulse-btn" type="button" id="generate-btn">
                 <i class="bi bi-magic"></i> 
                 <span class="d-none d-sm-inline">Generar</span>
-            </button>
-            <button class="btn btn-outline-secondary" type="button" id="gallery-btn" title="Ver galería de paletas">
-                <i class="bi bi-images"></i> 
-                <span class="d-none d-md-inline ms-1">Galería</span>
-            </button>
-            <!-- ⭐ BOTÓN DE ADMINISTRACIÓN (solo visible para admins) -->
-            <button class="btn btn-outline-warning" type="button" id="admin-btn" title="Administrar usuarios" style="display: none;">
-                <i class="bi bi-people-fill"></i> 
-                <span class="d-none d-md-inline ms-1">Admin</span>
             </button>
         </div>
         
@@ -59,19 +329,18 @@
         <div class="color-swatch" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);"></div>
     </main>
 
-    <!-- Panel lateral de galería mejorado -->
+    <!-- Panel lateral de galería (igual que antes) -->
     <div class="gallery-container" id="gallery-container">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h2 class="mb-0">
                 <i class="bi bi-palette2 text-primary"></i> 
                 Galería
             </h2>
-            <button class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('gallery-container').classList.remove('show')">
+            <button class="btn btn-sm btn-outline-secondary" onclick="closeGallery()">
                 <i class="bi bi-x-lg"></i>
             </button>
         </div>
         
-        <!-- Estadísticas rápidas -->
         <div class="row g-2 mb-3" id="gallery-stats">
             <div class="col-6">
                 <div class="card card-body text-center p-2">
@@ -87,7 +356,6 @@
             </div>
         </div>
         
-        <!-- Filtros -->
         <div class="mb-3">
             <select class="form-select form-select-sm" id="emotion-filter">
                 <option value="">Todas las emociones</option>
@@ -101,12 +369,10 @@
             </select>
         </div>
         
-        <!-- Grid de paletas -->
         <div class="gallery-grid" id="gallery-grid">
-            <!-- Las paletas se cargan dinámicamente aquí -->
+            <!-- Paletas dinámicas -->
         </div>
         
-        <!-- Botón para limpiar historial -->
         <div class="mt-4 text-center">
             <button class="btn btn-sm btn-outline-danger" id="clear-history" style="display: none;">
                 <i class="bi bi-trash"></i> Limpiar historial
@@ -116,155 +382,122 @@
 
     <!-- Toast para notificaciones -->
     <div class="toast-container position-fixed bottom-0 end-0 p-3">
-        <div id="notification-toast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div id="notification-toast" class="toast" role="alert">
             <div class="toast-header">
                 <i class="bi bi-palette2 text-primary me-2"></i>
                 <strong class="me-auto">Análisis Emocional</strong>
                 <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
             </div>
-            <div class="toast-body" id="toast-body">
-                <!-- Mensaje dinámico -->
-            </div>
+            <div class="toast-body" id="toast-body"></div>
         </div>
     </div>
-
-    <!-- Modal de ayuda -->
-    <div class="modal fade" id="help-modal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">
-                        <i class="bi bi-question-circle"></i> ¿Cómo funciona?
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <h6><i class="bi bi-1-circle text-primary"></i> Escribe tu emoción</h6>
-                    <p class="mb-3">Expresa cómo te sientes con palabras. Pueden ser frases como "Me siento muy feliz" o "Estoy un poco triste".</p>
-                    
-                    <h6><i class="bi bi-2-circle text-primary"></i> Análisis con IA</h6>
-                    <p class="mb-3">Nuestro sistema analiza tu texto usando algoritmos avanzados de procesamiento de lenguaje natural.</p>
-                    
-                    <h6><i class="bi bi-3-circle text-primary"></i> Colores únicos</h6>
-                    <p class="mb-3">Cada emoción se convierte en una paleta de colores basada en psicología del color y teoría cromática.</p>
-                    
-                    <div class="alert alert-info">
-                        <i class="bi bi-lightbulb"></i>
-                        <strong>Consejo:</strong> Haz clic en cualquier color para copiarlo al portapapeles.
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Botón de ayuda flotante -->
-    <button class="btn btn-primary rounded-circle position-fixed" style="bottom: 20px; right: 20px; z-index: 1000; width: 50px; height: 50px;" data-bs-toggle="modal" data-bs-target="#help-modal" title="Ayuda">
-        <i class="bi bi-question-lg"></i>
-    </button>
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <!-- ⭐ IMPORTANTE: auth.js DEBE ir ANTES de script.js -->
     <script src="auth.js"></script>
     <script src="script.js"></script>
     
-    <!-- Script adicional para funcionalidades extras -->
     <script>
-        // Funcionalidades adicionales
+        // Inicializar menú lateral
         document.addEventListener('DOMContentLoaded', () => {
-            // ⭐ MOSTRAR BOTÓN DE ADMIN SOLO SI ES ADMINISTRADOR
+            initializeMenu();
+            
+            // Remover la barra de usuario del auth.js si existe
+            const existingUserBar = document.getElementById('user-bar');
+            if (existingUserBar) {
+                existingUserBar.remove();
+            }
+        });
+
+        // Inicializar menú según rol del usuario
+        function initializeMenu() {
+            const user = AUTH.getUser();
+            if (!user) return;
+
+            // Actualizar perfil
+            const roleIcon = user.role === 'admin' ? '🛡️' : '👤';
+            const roleName = user.role === 'admin' ? 'Administrador' : 'Usuario';
+            
+            document.getElementById('menu-avatar').textContent = roleIcon;
+            document.getElementById('menu-username').textContent = user.full_name || user.username;
+            document.getElementById('menu-role').textContent = roleName;
+
+            // Construir items del menú
+            const menuItems = document.getElementById('menu-items');
+            menuItems.innerHTML = '';
+
+            // Opción de Galería (para todos)
+            const galleryItem = document.createElement('li');
+            galleryItem.className = 'menu-item';
+            galleryItem.innerHTML = `
+                <button onclick="openGalleryFromMenu()">
+                    <i class="bi bi-images"></i>
+                    <span>Galería de Paletas</span>
+                </button>
+            `;
+            menuItems.appendChild(galleryItem);
+
+            // Opción de Admin (solo para admins)
             if (AUTH.isAdmin()) {
-                const adminBtn = document.getElementById('admin-btn');
-                if (adminBtn) {
-                    adminBtn.style.display = 'block';
-                    adminBtn.addEventListener('click', () => {
-                        window.location.href = 'admin-users.html';
-                    });
-                }
+                const adminItem = document.createElement('li');
+                adminItem.className = 'menu-item';
+                adminItem.innerHTML = `
+                    <a href="admin-users.html">
+                        <i class="bi bi-people-fill"></i>
+                        <span>Gestión de Usuarios</span>
+                    </a>
+                `;
+                menuItems.insertBefore(adminItem, galleryItem);
             }
+        }
 
-            // Actualizar estado de conexión
-            const updateConnectionStatus = (connected) => {
-                const statusElement = document.getElementById('connection-status');
-                if (connected) {
-                    statusElement.innerHTML = '<i class="bi bi-circle-fill text-success"></i> Conectado';
-                } else {
-                    statusElement.innerHTML = '<i class="bi bi-circle-fill text-danger"></i> Desconectado';
-                }
-            };
+        // Toggle del menú
+        const menuBtn = document.getElementById('menu-btn');
+        const sideMenu = document.getElementById('side-menu');
+        const menuOverlay = document.getElementById('menu-overlay');
 
-            // Mostrar toast de notificación
-            const showToast = (message, type = 'info') => {
-                const toast = document.getElementById('notification-toast');
-                const toastBody = document.getElementById('toast-body');
-                toastBody.textContent = message;
-                
-                // Cambiar estilo según tipo
-                toast.className = `toast ${type === 'success' ? 'text-bg-success' : type === 'error' ? 'text-bg-danger' : 'text-bg-info'}`;
-                
-                const bsToast = new bootstrap.Toast(toast);
-                bsToast.show();
-            };
+        menuBtn.addEventListener('click', () => {
+            menuBtn.classList.toggle('active');
+            sideMenu.classList.toggle('open');
+            menuOverlay.classList.toggle('show');
+        });
 
-            // Verificar conexión periódicamente
-            setInterval(() => {
-                fetch('http://localhost:8000/health')
-                    .then(response => {
-                        updateConnectionStatus(response.ok);
-                    })
-                    .catch(() => {
-                        updateConnectionStatus(false);
-                    });
-            }, 30000); // Cada 30 segundos
+        menuOverlay.addEventListener('click', () => {
+            menuBtn.classList.remove('active');
+            sideMenu.classList.remove('open');
+            menuOverlay.classList.remove('show');
+        });
 
-            // Filtro de emociones en galería
-            const emotionFilter = document.getElementById('emotion-filter');
-            if (emotionFilter) {
-                emotionFilter.addEventListener('change', (e) => {
-                    const filterValue = e.target.value.toLowerCase();
-                    const cards = document.querySelectorAll('.gallery-card');
-                    
-                    cards.forEach(card => {
-                        const emotionText = card.querySelector('small').textContent.toLowerCase();
-                        if (filterValue === '' || emotionText.includes(filterValue.toLowerCase())) {
-                            card.style.display = 'block';
-                        } else {
-                            card.style.display = 'none';
-                        }
-                    });
-                });
+        // Abrir galería desde el menú
+        function openGalleryFromMenu() {
+            document.getElementById('gallery-container').classList.add('show');
+            // Cerrar menú
+            menuBtn.classList.remove('active');
+            sideMenu.classList.remove('open');
+            menuOverlay.classList.remove('show');
+        }
+
+        // Cerrar galería
+        function closeGallery() {
+            document.getElementById('gallery-container').classList.remove('show');
+        }
+
+        // Manejar logout
+        function handleLogout() {
+            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
+                AUTH.logout();
             }
+        }
 
-            // Atajos de teclado
-            document.addEventListener('keydown', (e) => {
-                // Ctrl/Cmd + Enter para generar
-                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                    e.preventDefault();
-                    document.getElementById('generate-btn').click();
-                }
-                
-                // Escape para cerrar galería
-                if (e.key === 'Escape') {
-                    document.getElementById('gallery-container').classList.remove('show');
-                }
-                
-                // Ctrl/Cmd + S para descargar
-                if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-                    e.preventDefault();
-                    document.getElementById('download-btn').click();
-                }
-            });
-
-            // Mensaje de bienvenida con usuario
-            setTimeout(() => {
-                const user = AUTH.getUser();
-                if (user) {
-                    showToast(`¡Bienvenido ${user.full_name || user.username}! Sistema listo.`, 'success');
-                }
-            }, 2000);
-
-            console.log('🎨 Análisis Emocional a Color v2.0 - Sistema seguro iniciado');
+        // Atajos de teclado
+        document.addEventListener('keydown', (e) => {
+            // ESC para cerrar menú
+            if (e.key === 'Escape') {
+                menuBtn.classList.remove('active');
+                sideMenu.classList.remove('open');
+                menuOverlay.classList.remove('show');
+                document.getElementById('gallery-container').classList.remove('show');
+            }
         });
     </script>
 </body>

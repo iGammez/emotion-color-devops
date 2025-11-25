@@ -66,101 +66,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         
-        // Mostrar información del usuario
-        displayUserInfo();
-        
-        // Agregar botón de logout si no existe
-        addLogoutButton();
+        // NO crear la barra de usuario aquí
+        // La UI del usuario ahora está en el menú hamburguesa
     }
 });
-
-// Mostrar información del usuario en la interfaz
-function displayUserInfo() {
-    const user = AUTH.getUser();
-    if (!user) return;
-
-    // Crear barra de usuario si no existe
-    if (!document.getElementById('user-bar')) {
-        const userBar = document.createElement('div');
-        userBar.id = 'user-bar';
-        userBar.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 10px 20px;
-            border-radius: 25px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
-            z-index: 9999;
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        `;
-
-        // Icono de rol
-        const roleIcon = user.role === 'admin' ? '🛡️' : '👤';
-        const roleColor = user.role === 'admin' ? '#ff6b6b' : '#4ecdc4';
-        const roleName = user.role === 'admin' ? 'Admin' : 'User';
-
-        userBar.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 10px;">
-                <div style="
-                    width: 35px;
-                    height: 35px;
-                    border-radius: 50%;
-                    background: linear-gradient(135deg, #667eea, #764ba2);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    color: white;
-                    font-size: 1.2rem;
-                ">
-                    ${roleIcon}
-                </div>
-                <div>
-                    <div style="font-weight: 600; color: #333; font-size: 0.9rem;">
-                        ${user.full_name || user.username}
-                    </div>
-                    <div style="font-size: 0.75rem; color: ${roleColor}; font-weight: 600;">
-                        ${roleName}
-                    </div>
-                </div>
-            </div>
-            <button id="logout-btn" style="
-                background: linear-gradient(135deg, #667eea, #764ba2);
-                border: none;
-                color: white;
-                padding: 8px 16px;
-                border-radius: 15px;
-                font-size: 0.85rem;
-                font-weight: 600;
-                cursor: pointer;
-                transition: all 0.3s ease;
-            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
-                Cerrar Sesión
-            </button>
-        `;
-
-        document.body.appendChild(userBar);
-
-        // Agregar evento al botón de logout
-        document.getElementById('logout-btn').addEventListener('click', () => {
-            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                AUTH.logout();
-            }
-        });
-    }
-}
-
-// Agregar botón de logout al header si existe
-function addLogoutButton() {
-    const controlsContainer = document.querySelector('.controls-container');
-    if (controlsContainer && !document.getElementById('logout-btn-header')) {
-        // Ya se agregó en displayUserInfo, no duplicar
-    }
-}
 
 // Función para hacer peticiones autenticadas
 async function authenticatedFetch(url, options = {}) {
